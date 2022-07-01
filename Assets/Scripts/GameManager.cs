@@ -24,7 +24,6 @@ public class GameManager : MonoBehaviour {
     private const string FILE_LOCATE_DIALOG_KEY = "/Dialogs/pastadeteste.csv";
     private const string FILE_LOCATE_SAVE_KEY = "/SaveData/save";
 
-
     private const string DIALOG_UI_NPC_OBJECT_KEY = "";
     private const string DIALOG_UI_PHRASE_OBJECT_KEY = "";
     private const string DIALOG_NPC_OBJECT_KEY = "Npc_name";
@@ -62,8 +61,10 @@ public class GameManager : MonoBehaviour {
     private protected float jumpForce;
     private protected const float maxForce = 30, forceIncress = 50;
 
-    private protected Vector2 playerPosition;
-    private protected float life;
+    [SerializeField] private protected Vector2 playerPosition;
+
+    private Slider lifeBar;
+    [SerializeField] private protected float life, maxLife;
 
     // Varivaies do save menu (pre load)
     private TMP_Text[] saveMenu_saveStats_text = new TMP_Text[3], saveMenu_lastPhase_text = new TMP_Text[3], saveMenu_colletablesFunds_text = new TMP_Text[3];
@@ -80,7 +81,7 @@ public class GameManager : MonoBehaviour {
 
     private protected string[] lines, cellsOfAtualLine;
     private protected string[] listOfPhrases;
-    [SerializeField] private protected int selectedLine;
+    private protected int selectedLine;
     private protected int atualCell;
 
     private protected string phraseToDisplay = string.Empty, npcToDisplay = string.Empty;
@@ -90,14 +91,13 @@ public class GameManager : MonoBehaviour {
     private bool startToWritePhrase = false;
     private char[] charToDisplay;
     private int charsCount = 0;
+    // Coletaveis
+    [SerializeField] private string[] collectables;
+    [SerializeField] private bool[] unlockedCollectibles;
 
     // Sistema de Save 
     private protected string[] local_save_file = new string[3];
     [SerializeField] private string saveStats = "< EMPTY >";
-
-    // Coletaveis
-    [SerializeField] private string[] collectables;
-    [SerializeField] private bool[] unlockedCollectibles;
 
     // Start is called before the scene starts
     private void Awake() {
@@ -110,6 +110,7 @@ public class GameManager : MonoBehaviour {
 
         DontDestroyOnLoad(this.gameObject);
     }
+
     // Start is called before the first frame update
     private void Start() {
         for(int i = 0; i < local_save_file.Length; i++) {
@@ -127,13 +128,13 @@ public class GameManager : MonoBehaviour {
 
     // Update is called once per frame
     private void Update() {
-        if(Input.GetKeyDown(KeyCode.L)) ReadCsv(selectedLine);
+        if(Input.GetKeyDown(KeyCode.L)) StartNewGame(); // linha de teste
 
         if(FoundPlayer == false) {
             if(atualPlayer == null) atualPlayer = GameObject.Find(PLAYER_KEY);
             else FoundPlayer = true;
 
-            player_rb = atualPlayer.GetComponent<Rigidbody2D>();
+            if(atualPlayer != null) player_rb = atualPlayer.GetComponent<Rigidbody2D>();
         }
         else {
             if(atualPlayer != null && pauseGame == false) {
@@ -149,23 +150,11 @@ public class GameManager : MonoBehaviour {
     }
 
     // Start Menu
-    private protected void MenuManager() {
+    private void MenuManager() {
 
     }
 
-    public void UIButtonPressed(string ButtonName) {
-        switch(ButtonName) {
-            case "NextPhrase":
-            if(charsCount < charToDisplay.Length) timeToDispayChar = DIALOG_SPEED_DISPLAY_VERYFAST_KEY;
-            else {
-                atualCell++;
-                ReadCsv(selectedLine);
-            }
-            break;
-        }
-    }
-    
-    private protected void PreLoadData() {
+    private void PreLoadData() {
         for(int i = 0; i < local_save_file.Length; i++) {
             int colletablesFoundsCount = 0;
 
@@ -208,7 +197,7 @@ public class GameManager : MonoBehaviour {
         }
     }
     
-    private protected void StartNewGame() {
+    private void StartNewGame() {
         LoadScene(INITIAL_PHASE_KEY);
         atualPlayer = null;
         FoundPlayer = false;
@@ -267,7 +256,7 @@ public class GameManager : MonoBehaviour {
         }
     }
 
-    private protected void Flip() {
+    private void Flip() {
         if((playerFlipToLeft && !playerFlipToRigh)||(!playerFlipToLeft && playerFlipToRigh)) {
             playerFlipToRigh = !playerFlipToRigh;
 
@@ -277,8 +266,46 @@ public class GameManager : MonoBehaviour {
         }
     }
 
+    // Player Life
+
+    private protected void ChangeLifeValue(float value) {
+        life += value;
+        if(life > maxLife) life = maxLife;
+        lifeBar.value = life;
+        if(life <= 0) Dead();
+    }
+
+    private protected void ChangeLifeMaxValue(float value) {
+        maxLife += value;
+        lifeBar.maxValue = maxLife;
+    }
+
+    private void Dead() {
+
+        if(life <= 0) Dead();
+    }
+
+    // Events Controll
+    public void UIButtonPressed(string ButtonName) {
+        switch(ButtonName) {
+            case "NextPhrase":
+            if(charsCount < charToDisplay.Length) timeToDispayChar = DIALOG_SPEED_DISPLAY_VERYFAST_KEY;
+            else {
+                atualCell++;
+                ReadCsv(selectedLine);
+            }
+            break;
+        }
+    }
+    
+    public void StartEvent(string eventName, int idOfAnyAction) {
+        switch(eventName) {
+            default: Debug.LogError(eventName + " is not a valid event"); break;
+        }
+    }
+
     // Dialog System
-    private protected void ShowDialog() {
+    private void ShowDialog() {
         npcText.text = npcToDisplay;
 
         if(timerTextChar <= 0) {
@@ -305,7 +332,7 @@ public class GameManager : MonoBehaviour {
         else timerTextChar -= Time.deltaTime;
     }
 
-    private protected void ReadCsv(int line) {
+    public void ReadCsv(int line) {
         StreamReader stream = new StreamReader(DialogFile);
 
         lines = stream.ReadToEnd().Split('/');
@@ -313,7 +340,6 @@ public class GameManager : MonoBehaviour {
 
         listOfPhrases = new string[cellsOfAtualLine.Length - 1];
         for(int i = 0; i < cellsOfAtualLine.Length - 1; i++) listOfPhrases[i] = cellsOfAtualLine[i + 1];
-        Debug.Log(listOfPhrases[atualCell + 1]);
 
         phraseText.text = String.Empty;
         charsCount = 0;
@@ -330,7 +356,6 @@ public class GameManager : MonoBehaviour {
         else {
             npcText.text = String.Empty;
             // destativar gameobject e desprender prsonagem
-            Debug.Log("End Of Dialog");
             atualCell = 0;
         }
     }
@@ -380,10 +405,9 @@ public class GameManager : MonoBehaviour {
     [SerializeField]
     public class GameData {
         private int _saveID;
-        private string _saveStats;
-        private string _lastScene;
+        private string _saveStats, _lastScene;
         private bool[] _unlockedCollectibles;
-        private float _life;
+        private float _life, _maxLife;
         private Vector2 _playerPosition;
 
         public int SaveID {
@@ -409,6 +433,11 @@ public class GameManager : MonoBehaviour {
         public float Life {
             get { return _life; }
             set { _life = value; }
+        }
+
+        public float MaxLife {
+            get { return _maxLife; }
+            set { _maxLife = value; }
         }
 
         public Vector2 PlayerPosition {
