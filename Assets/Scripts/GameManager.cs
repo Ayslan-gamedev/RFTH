@@ -21,8 +21,26 @@ public class GameManager : MonoBehaviour {
     private const string SAVE_SCROLLBAR_OBJECT_KEY = "Scrollbar_GameProgress_";
     private const string SAVE_GAME_PROGRESS_OBJECT_KEY = "Text_gameProgressQuant_";
 
-    private const string FILE_LOCATE_DIALOG_KEY = "/Dialog/pastadeteste.cxv";
+    private const string FILE_LOCATE_DIALOG_KEY = "/Dialogs/pastadeteste.csv";
     private const string FILE_LOCATE_SAVE_KEY = "/SaveData/save";
+
+
+    private const string DIALOG_UI_NPC_OBJECT_KEY = "";
+    private const string DIALOG_UI_PHRASE_OBJECT_KEY = "";
+    private const string DIALOG_NPC_OBJECT_KEY = "Npc_name";
+    private const string DIALOG_PHRASE_OBJECT_KEY = "fala";
+
+    private const float DIALOG_SPEED_DISPLAY_VERYSLOW_KEY = 0.5f;
+    private const float DIALOG_SPEED_DISPLAY_SLOW_KEY = 0.25f;
+    private const float DIALOG_SPEED_DISPLAY_NORMAL_KEY = 0.15f;
+    private const float DIALOG_SPEED_DISPLAY_FAST_KEY = 0.07f;
+    private const float DIALOG_SPEED_DISPLAY_VERYFAST_KEY = 0.01f;
+
+    private const char DIALOG_SPEED_CHAR_VERYSLOW_KEY = '%';
+    private const char DIALOG_SPEED_CHAR_SLOW_KEY = '&';
+    private const char DIALOG_SPEED_CHAR_NORMAL_KEY = '*';
+    private const char DIALOG_SPEED_CHAR_FAST_KEY = '('; 
+    private const char DIALOG_SPEED_CHAR_VERYFAST_KEY = ')';
 
     private const string SAVE_GAME_PROGRESS_NULL_PROGRESS_KEY = "0.0%";
 
@@ -44,33 +62,34 @@ public class GameManager : MonoBehaviour {
     private protected float jumpForce;
     private protected const float maxForce = 30, forceIncress = 50;
 
-    [SerializeField] private protected Vector2 playerPosition;
-    [SerializeField] private protected float life;
+    private protected Vector2 playerPosition;
+    private protected float life;
 
     // Varivaies do save menu (pre load)
     private TMP_Text[] saveMenu_saveStats_text = new TMP_Text[3], saveMenu_lastPhase_text = new TMP_Text[3], saveMenu_colletablesFunds_text = new TMP_Text[3];
-
     private TMP_Text[] saveMenu_gamePorcent_text = new TMP_Text[3];
-
     private Scrollbar[] saveMenu_gamePorcent_slider = new Scrollbar[3];
 
     // Constroladores Gerais
     private protected bool pauseGame;
 
     [SerializeField] private protected string atualScene;
-    
+
     // Variaveis do sistema de dialogo
-    public string DialogFile;
-    private protected string[] lines, coluns;
+    private protected string DialogFile;
 
-    public int cell;
-    public string[] atualFrases = new string[17];
+    private protected string[] lines, cellsOfAtualLine;
+    private protected string[] listOfPhrases;
+    [SerializeField] private protected int selectedLine;
+    private protected int atualCell;
 
-    public Text npc, frase;
-    public string atualFrase = string.Empty, atualNpc;
-    private bool startEWrite = false;
+    private protected string phraseToDisplay = string.Empty, npcToDisplay = string.Empty;
+    private Text npcText, phraseText;
 
-    public float timerText, timeToWait;
+    public float timerTextChar, timeToDispayChar;
+    private bool startToWritePhrase = false;
+    private char[] charToDisplay;
+    private int charsCount = 0;
 
     // Sistema de Save 
     private protected string[] local_save_file = new string[3];
@@ -93,21 +112,22 @@ public class GameManager : MonoBehaviour {
     }
     // Start is called before the first frame update
     private void Start() {
-        unlockedCollectibles[2] = true;
-
-        for(int i = 1; i < local_save_file.Length + 1; i++) {
-            saveMenu_saveStats_text[i - 1] = GameObject.Find(SAVE_TITLE_OBJECT_KEY + i.ToString()).GetComponent<TMP_Text>();
-            saveMenu_lastPhase_text[i - 1] = GameObject.Find(SAVE_PHASE_OBJECT_KEY + i.ToString()).GetComponent<TMP_Text>();
-            saveMenu_colletablesFunds_text[i - 1] = GameObject.Find(SAVE_COLLETABLES_OBJECT_KEY + i.ToString()).GetComponent<TMP_Text>();
-            saveMenu_gamePorcent_slider[i - 1] = GameObject.Find(SAVE_SCROLLBAR_OBJECT_KEY + i.ToString()).GetComponent<Scrollbar>();
-            saveMenu_gamePorcent_text[i - 1] = GameObject.Find(SAVE_GAME_PROGRESS_OBJECT_KEY + i.ToString()).GetComponent<TMP_Text>();
+        for(int i = 0; i < local_save_file.Length; i++) {
+            if(GameObject.Find(SAVE_TITLE_OBJECT_KEY + (i + 1).ToString()) != null) saveMenu_saveStats_text[i] = GameObject.Find(SAVE_TITLE_OBJECT_KEY + (i + 1).ToString()).GetComponent<TMP_Text>();
+            if(GameObject.Find(SAVE_PHASE_OBJECT_KEY + (i + 1).ToString()) != null) saveMenu_lastPhase_text[i] = GameObject.Find(SAVE_PHASE_OBJECT_KEY + (i + 1).ToString()).GetComponent<TMP_Text>();
+            if(GameObject.Find(SAVE_COLLETABLES_OBJECT_KEY + (i + 1).ToString()) != null) saveMenu_colletablesFunds_text[i] = GameObject.Find(SAVE_COLLETABLES_OBJECT_KEY + (i + 1).ToString()).GetComponent<TMP_Text>();
+            if(GameObject.Find(SAVE_SCROLLBAR_OBJECT_KEY + (i + 1).ToString())) saveMenu_gamePorcent_slider[i] = GameObject.Find(SAVE_SCROLLBAR_OBJECT_KEY + (i + 1).ToString()).GetComponent<Scrollbar>();
+            if(GameObject.Find(SAVE_GAME_PROGRESS_OBJECT_KEY + (i + 1).ToString()) != null) saveMenu_gamePorcent_text[i] = GameObject.Find(SAVE_GAME_PROGRESS_OBJECT_KEY + (i + 1).ToString()).GetComponent<TMP_Text>();
         }
+        if(GameObject.Find(DIALOG_NPC_OBJECT_KEY).GetComponent<Text>() != null) npcText = GameObject.Find(DIALOG_NPC_OBJECT_KEY).GetComponent<Text>();
+        if(GameObject.Find(DIALOG_PHRASE_OBJECT_KEY).GetComponent<Text>()) phraseText = GameObject.Find(DIALOG_PHRASE_OBJECT_KEY).GetComponent<Text>();
 
-        timerText = timeToWait;
+        timeToDispayChar = DIALOG_SPEED_DISPLAY_NORMAL_KEY;
     }
+
     // Update is called once per frame
     private void Update() {
-        if(Input.GetKeyDown(KeyCode.L)) ReadCsv(cell);
+        if(Input.GetKeyDown(KeyCode.L)) ReadCsv(selectedLine);
 
         if(FoundPlayer == false) {
             if(atualPlayer == null) atualPlayer = GameObject.Find(PLAYER_KEY);
@@ -117,19 +137,14 @@ public class GameManager : MonoBehaviour {
         }
         else {
             if(atualPlayer != null && pauseGame == false) {
-
                 MovPlayer();
                 JumpPlayer();
             }
         }
 
-        if(startEWrite == true) {
-            timerText -= Time.deltaTime;
-            var chaR = atualFrases[cell].ToCharArray();
-            if(timerText <= 0) {
-                frase.text = string.Empty;
-                timerText = timeToWait;
-            }
+        if(startToWritePhrase == true) ShowDialog();
+        else {
+
         }
     }
 
@@ -138,9 +153,15 @@ public class GameManager : MonoBehaviour {
 
     }
 
-    private protected void OptionSelected(string Button) {
-        switch(Button) {
-
+    public void UIButtonPressed(string ButtonName) {
+        switch(ButtonName) {
+            case "NextPhrase":
+            if(charsCount < charToDisplay.Length) timeToDispayChar = DIALOG_SPEED_DISPLAY_VERYFAST_KEY;
+            else {
+                atualCell++;
+                ReadCsv(selectedLine);
+            }
+            break;
         }
     }
     
@@ -258,23 +279,60 @@ public class GameManager : MonoBehaviour {
 
     // Dialog System
     private protected void ShowDialog() {
+        npcText.text = npcToDisplay;
 
+        if(timerTextChar <= 0) {
+            if(charsCount < charToDisplay.Length) {
+
+                switch(charToDisplay[charsCount]) {
+                    case DIALOG_SPEED_CHAR_VERYSLOW_KEY: timeToDispayChar = DIALOG_SPEED_DISPLAY_VERYSLOW_KEY; break;
+                    case DIALOG_SPEED_CHAR_SLOW_KEY: timeToDispayChar = DIALOG_SPEED_DISPLAY_SLOW_KEY; break;
+                    case DIALOG_SPEED_CHAR_NORMAL_KEY: timeToDispayChar = DIALOG_SPEED_DISPLAY_NORMAL_KEY; break;
+                    case DIALOG_SPEED_CHAR_FAST_KEY: timeToDispayChar = DIALOG_SPEED_DISPLAY_FAST_KEY; break;
+                    case DIALOG_SPEED_CHAR_VERYFAST_KEY: timeToDispayChar = DIALOG_SPEED_DISPLAY_VERYFAST_KEY; break;
+
+                    default:
+                    phraseText.text += charToDisplay[charsCount];
+                    break;
+                }
+                
+                charsCount++;
+            }
+            else startToWritePhrase = false;
+
+            timerTextChar = timeToDispayChar;
+        }
+        else timerTextChar -= Time.deltaTime;
     }
 
-    private protected void ReadCsv(int cell) {
-        frase.text = string.Empty;
-
+    private protected void ReadCsv(int line) {
         StreamReader stream = new StreamReader(DialogFile);
 
         lines = stream.ReadToEnd().Split('/');
-        coluns = lines[cell].Split(';');
+        cellsOfAtualLine = lines[line].Split(';');
 
-        string[] preFrase = new string[atualFrases.Length];
-        for(int i = 1; i < coluns.Length - 1; i++) {
-            atualFrases[i - 1] = coluns[i];
+        listOfPhrases = new string[cellsOfAtualLine.Length - 1];
+        for(int i = 0; i < cellsOfAtualLine.Length - 1; i++) listOfPhrases[i] = cellsOfAtualLine[i + 1];
+        Debug.Log(listOfPhrases[atualCell + 1]);
+
+        phraseText.text = String.Empty;
+        charsCount = 0;
+
+        if(listOfPhrases[atualCell + 1] != String.Empty ) {
+            phraseToDisplay = listOfPhrases[atualCell + 1];
+            npcToDisplay = listOfPhrases[0];
+
+            charToDisplay = phraseToDisplay.ToCharArray();
+            timeToDispayChar = DIALOG_SPEED_DISPLAY_NORMAL_KEY;
+
+            startToWritePhrase = true;
         }
-
-        startEWrite = true;
+        else {
+            npcText.text = String.Empty;
+            // destativar gameobject e desprender prsonagem
+            Debug.Log("End Of Dialog");
+            atualCell = 0;
+        }
     }
 
     // Save System
