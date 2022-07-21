@@ -47,7 +47,7 @@ public class GameManager : MonoBehaviour {
 
     // VARIAVEIS DO PLAYER
     private const string PLAYER_KEY = "Player";
-    private bool FoundPlayer = true;
+    private byte FoundPlayer = 0;
 
     private protected GameObject atualPlayer = null;
     private protected Rigidbody2D player_rb;
@@ -56,7 +56,7 @@ public class GameManager : MonoBehaviour {
     private protected const float minSpeed = 5, maxSpeed = 15, aceleration = 3, desaceleretion = 9;
     private float direction = 0;
 
-    private protected bool playerFlipToLeft, playerFlipToRigh;
+    private protected byte playerFlipToLeft, playerFlipToRigh;
 
     private protected float jumpForce;
     private protected const float maxForce = 30, forceIncress = 50;
@@ -130,17 +130,15 @@ public class GameManager : MonoBehaviour {
     private void Update() {
         if(Input.GetKeyDown(KeyCode.L)) StartNewGame(); // linha de teste
 
-        if(FoundPlayer == false) {
+        if(FoundPlayer == 0) {
             if(atualPlayer == null) atualPlayer = GameObject.Find(PLAYER_KEY);
-            else FoundPlayer = true;
+            else FoundPlayer = 1;
 
             if(atualPlayer != null) player_rb = atualPlayer.GetComponent<Rigidbody2D>();
         }
         else {
-            if(atualPlayer != null && pauseGame == false) {
-                MovPlayer();
-                JumpPlayer();
-            }
+            if(atualPlayer != null && pauseGame == false) 
+                MovPlayer(); JumpPlayer();
         }
 
         if(startToWritePhrase == true) ShowDialog();
@@ -170,10 +168,8 @@ public class GameManager : MonoBehaviour {
                 saveMenu_lastPhase_text[i].text = dat.LastScene.ToString();
 
                 if(unlockedCollectibles.Length == dat.UnlockedCollectibles.Length) {
-                    for(int a = 0; a < dat.UnlockedCollectibles.Length; a++) {
-                        if(dat.UnlockedCollectibles[a] == true)
-                            colletablesFoundsCount++;
-                    }
+                    for(int a = 0; a < dat.UnlockedCollectibles.Length; a++)
+                        if(dat.UnlockedCollectibles[a] == true) colletablesFoundsCount++;
 
                     saveMenu_colletablesFunds_text[i].text = colletablesFoundsCount + "/" + unlockedCollectibles.Length;
 
@@ -200,22 +196,19 @@ public class GameManager : MonoBehaviour {
     private void StartNewGame() {
         LoadScene(INITIAL_PHASE_KEY);
         atualPlayer = null;
-        FoundPlayer = false;
+        FoundPlayer = 0;
     }
 
     // Scene Manager
     private protected void LoadScene(string scene) {
         UnityEngine.SceneManagement.SceneManager.LoadScene(scene);
-
         atualScene = scene;
     }
 
     // Player Movment
     private protected void JumpPlayer() {
-
         if(Input.GetKey(KeyCode.Space)) {
-            if(jumpForce < maxForce)
-                jumpForce += forceIncress * Time.deltaTime;
+            if(jumpForce < maxForce) jumpForce += forceIncress * Time.deltaTime;
         }
         else if(Input.GetKeyUp(KeyCode.Space)) {
             player_rb.AddForce(new Vector2(0,jumpForce),ForceMode2D.Impulse);
@@ -224,41 +217,32 @@ public class GameManager : MonoBehaviour {
     }
     
     private protected void MovPlayer() {
+        float inputAxisHorizontal = Input.GetAxisRaw("Horizontal");
+
         player_rb.velocity = new Vector2(atualSpeed * direction, atualPlayer.gameObject.GetComponent<Rigidbody2D>().velocity.y);
 
         // set speed over aceleration time
-        if(Input.GetAxisRaw("Horizontal") != 0) {
-            direction = Input.GetAxisRaw("Horizontal");
+        if(inputAxisHorizontal != 0) {
+            direction = inputAxisHorizontal;
 
             // set start speed
-            if(atualSpeed < minSpeed)
-                atualSpeed = minSpeed;
+            if(atualSpeed < minSpeed) atualSpeed = minSpeed;
 
             // set acceleration
-            if(atualSpeed > maxSpeed)
-                atualSpeed = maxSpeed;
-            else
-                atualSpeed += aceleration * Time.deltaTime;
+            if(atualSpeed > maxSpeed) atualSpeed = maxSpeed; 
+            else atualSpeed += aceleration * Time.deltaTime;
 
             // flip sprite
-            if(Input.GetAxis("Horizontal") > 0) {
-                playerFlipToLeft = true;
-                Flip();
-            }
-            else {
-                playerFlipToLeft = false;
-                Flip();
-            }
+            if(inputAxisHorizontal > 0) playerFlipToLeft = 0;
+            else playerFlipToLeft = 1;
+            Flip();
         }
-        else {
-            if(atualSpeed > 0)
-                atualSpeed -= desaceleretion * Time.deltaTime;
-        }
+        else if(atualSpeed > 0) atualSpeed -= desaceleretion * Time.deltaTime;
     }
 
     private void Flip() {
-        if((playerFlipToLeft && !playerFlipToRigh)||(!playerFlipToLeft && playerFlipToRigh)) {
-            playerFlipToRigh = !playerFlipToRigh;
+        if(playerFlipToLeft != playerFlipToRigh) {
+            if(playerFlipToRigh == 0) playerFlipToRigh = 1; else playerFlipToRigh = 0;
 
             Vector3 theScale = atualPlayer.transform.localScale;
             theScale.z *= -1;
@@ -270,9 +254,12 @@ public class GameManager : MonoBehaviour {
 
     private protected void ChangeLifeValue(float value) {
         life += value;
+        
         if(life > maxLife) life = maxLife;
-        lifeBar.value = life;
-        if(life <= 0) Dead();
+        else if(life <= 0) {
+            lifeBar.value = life;
+            Dead();
+        }
     }
 
     private protected void ChangeLifeMaxValue(float value) {
@@ -282,7 +269,6 @@ public class GameManager : MonoBehaviour {
 
     private void Dead() {
 
-        if(life <= 0) Dead();
     }
 
     // Events Controll
